@@ -353,6 +353,18 @@
     </div>
   </div>
 
+  <!-- Confirm Modal -->
+  <div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-label="確認">
+    <div class="modal" style="max-width: 360px; text-align: center;">
+      <h2 id="confirmTitle" style="color: var(--danger);">確定要刪除嗎？</h2>
+      <p id="confirmMessage" style="margin-bottom: 24px; font-size: 1.1rem; color: var(--text-secondary);"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-cancel" id="btnConfirmCancel">取消</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmAction" style="flex: 1;">✔ 確定</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     /* ── State ── */
     const STORAGE_KEY = 'teacher_leave_records';
@@ -370,6 +382,14 @@
     const $reason    = document.getElementById('inputReason');
     const $otherGrp  = document.getElementById('otherReasonGroup');
     const $otherIn   = document.getElementById('inputOtherReason');
+
+    /* ── Confirm Modal Refs ── */
+    const $confirmOverlay   = document.getElementById('confirmOverlay');
+    const $confirmTitle     = document.getElementById('confirmTitle');
+    const $confirmMessage   = document.getElementById('confirmMessage');
+    const $btnConfirmCancel = document.getElementById('btnConfirmCancel');
+    const $btnConfirmAction = document.getElementById('btnConfirmAction');
+    let confirmCallback = null;
 
     /* ── Helpers ── */
     function todayString() {
@@ -456,16 +476,45 @@
       $overlay.classList.remove('active');
     }
 
+    /* ── Confirm Helpers ── */
+    function showConfirm(title, message, isDanger, onConfirm) {
+      $confirmTitle.textContent = title;
+      $confirmMessage.textContent = message;
+      $confirmTitle.style.color = isDanger ? 'var(--danger)' : 'var(--primary-dark)';
+      $btnConfirmAction.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
+      $btnConfirmAction.style.flex = '1';
+      
+      confirmCallback = onConfirm;
+      $confirmOverlay.classList.add('active');
+    }
+
+    function closeConfirm() {
+      $confirmOverlay.classList.remove('active');
+      confirmCallback = null;
+    }
+
     /* ── Events ── */
     document.getElementById('btnAdd').addEventListener('click', openModal);
     document.getElementById('btnCancel').addEventListener('click', closeModal);
+    
+    $btnConfirmCancel.addEventListener('click', closeConfirm);
+    $btnConfirmAction.addEventListener('click', () => {
+      if (confirmCallback) confirmCallback();
+      closeConfirm();
+    });
 
     $overlay.addEventListener('click', (e) => {
       if (e.target === $overlay) closeModal();
     });
+    $confirmOverlay.addEventListener('click', (e) => {
+      if (e.target === $confirmOverlay) closeConfirm();
+    });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') {
+        closeModal();
+        closeConfirm();
+      }
     });
 
     $reason.addEventListener('change', () => {
@@ -490,9 +539,10 @@
     });
 
     document.getElementById('btnClear').addEventListener('click', () => {
-      if (!confirm('確定要清除全部請假紀錄嗎？')) return;
-      saveRecords([]);
-      render();
+      showConfirm('清除全部', '確定要清除全部的請假紀錄嗎？', true, () => {
+        saveRecords([]);
+        render();
+      });
     });
 
     $tbody.addEventListener('click', (e) => {
@@ -501,10 +551,13 @@
       const idx = Number(btn.dataset.index);
       const records = loadRecords();
       const name = records[idx]?.name || '';
-      if (!confirm(`確定要刪除「${name}」的紀錄嗎？`)) return;
-      records.splice(idx, 1);
-      saveRecords(records);
-      render();
+      
+      showConfirm('刪除紀錄', `確定要刪除「${name}」的紀錄嗎？`, true, () => {
+        const currentRecords = loadRecords();
+        currentRecords.splice(idx, 1);
+        saveRecords(currentRecords);
+        render();
+      });
     });
 
     /* ── Init ── */
