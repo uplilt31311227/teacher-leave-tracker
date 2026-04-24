@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>今天誰請假</title>
+  <meta name="description" content="極簡版教師請假登錄系統，快速記錄今天請假的老師" />
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #3b82f6;
+      --primary-light: #dbeafe;
+      --primary-lighter: #eff6ff;
+      --primary-dark: #2563eb;
+      --surface: #ffffff;
+      --bg: #f0f7ff;
+      --text: #1e293b;
+      --text-secondary: #64748b;
+      --border: #cbd5e1;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --radius: 14px;
+      --shadow: 0 4px 24px rgba(59,130,246,.12);
+      --shadow-lg: 0 12px 40px rgba(59,130,246,.18);
+    }
+
+    body {
+      font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+      color: #fff;
+      text-align: center;
+      padding: 28px 20px 24px;
+      box-shadow: 0 4px 20px rgba(59,130,246,.25);
+      position: relative;
+    }
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      margin-bottom: 6px;
+    }
+    .header .date {
+      font-size: 1.15rem;
+      opacity: .9;
+      font-weight: 400;
+    }
+    .header .dot-decoration {
+      position: absolute;
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.08);
+      top: -40px; right: -30px;
+    }
+
+    /* ── Container ── */
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 24px 16px 80px;
+    }
+
+    /* ── Action Bar ── */
+    .action-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 22px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s ease;
+      font-family: inherit;
+    }
+    .btn:active { transform: scale(.96); }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(59,130,246,.3);
+      flex: 1;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-danger {
+      background: #fff;
+      color: var(--danger);
+      border: 2px solid var(--danger);
+    }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+
+    /* ── Summary Badge ── */
+    .summary {
+      background: var(--primary-light);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      font-size: 1.15rem;
+      font-weight: 500;
+      color: var(--primary-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .summary .count {
+      background: var(--primary);
+      color: #fff;
+      border-radius: 8px;
+      padding: 2px 12px;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    /* ── Table Card ── */
+    .table-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead th {
+      background: var(--primary-lighter);
+      color: var(--primary-dark);
+      font-size: 1.05rem;
+      font-weight: 600;
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 2px solid var(--primary-light);
+    }
+    tbody td {
+      padding: 14px 16px;
+      font-size: 1.1rem;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background .15s; }
+    tbody tr:hover { background: #f8fafc; }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 1.3rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: background .15s;
+    }
+    .delete-btn:hover { background: #fef2f2; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-secondary);
+      font-size: 1.15rem;
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+    /* ── Modal Overlay ── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,.45);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      animation: fadeIn .2s ease;
+    }
+    .overlay.active { display: flex; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 440px;
+      padding: 28px 24px 24px;
+      animation: slideUp .25s ease;
+    }
+    .modal h2 {
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      color: var(--primary-dark);
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+      transition: border-color .2s;
+      background: #fff;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+    }
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .modal-actions .btn { flex: 1; justify-content: center; }
+    .btn-cancel {
+      background: #f1f5f9;
+      color: var(--text-secondary);
+    }
+    .btn-cancel:hover { background: #e2e8f0; }
+    .btn-submit {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(59,130,246,.3);
+    }
+    .btn-submit:hover { background: var(--primary-dark); }
+
+    /* ── Number Column ── */
+    .col-num { width: 44px; text-align: center; color: var(--text-secondary); }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      .header h1 { font-size: 1.6rem; }
+      .header .date { font-size: 1rem; }
+      .btn { padding: 12px 14px; font-size: 1rem; }
+      thead th, tbody td { padding: 10px 10px; font-size: 1rem; }
+      .container { padding: 16px 10px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header" role="banner">
+    <div class="dot-decoration"></div>
+    <h1>📋 今天誰請假</h1>
+    <p class="date" id="todayDate"></p>
+  </header>
+
+  <!-- Main -->
+  <main class="container" role="main">
+
+    <!-- Action buttons -->
+    <div class="action-bar">
+      <button class="btn btn-primary" id="btnAdd" aria-label="新增請假">＋ 新增請假</button>
+      <button class="btn btn-danger" id="btnClear" aria-label="清除全部">🗑 清除全部</button>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary">
+      今日請假人數：<span class="count" id="leaveCount">0</span> 人
+    </div>
+
+    <!-- Table -->
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-num">#</th>
+            <th>姓名</th>
+            <th>節次</th>
+            <th>事由</th>
+            <th style="width:48px"></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <!-- JS renders rows -->
+        </tbody>
+      </table>
+      <div class="empty-state" id="emptyState" style="display:none">
+        <div class="icon">🎉</div>
+        <p>今天沒有人請假，太好了！</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal -->
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="新增請假">
+    <div class="modal">
+      <h2>新增請假紀錄</h2>
+      <form id="leaveForm">
+        <div class="form-group">
+          <label for="inputName">老師姓名</label>
+          <input type="text" id="inputName" placeholder="例：王大明" required autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label for="inputPeriod">請假節次</label>
+          <input type="text" id="inputPeriod" placeholder="例：第 3、4 節" required autocomplete="off" />
+        </div>
+        <div class="form-group">
+          <label for="inputReason">請假事由</label>
+          <select id="inputReason">
+            <option value="事假">事假</option>
+            <option value="病假">病假</option>
+            <option value="公假">公假</option>
+            <option value="喪假">喪假</option>
+            <option value="婚假">婚假</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        <div class="form-group" id="otherReasonGroup" style="display:none">
+          <label for="inputOtherReason">請填寫事由</label>
+          <input type="text" id="inputOtherReason" placeholder="請輸入事由" autocomplete="off" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-cancel" id="btnCancel">取消</button>
+          <button type="submit" class="btn btn-submit">✔ 送出</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* ── State ── */
+    const STORAGE_KEY = 'teacher_leave_records';
+    const STORAGE_DATE_KEY = 'teacher_leave_date';
+
+    /* ── DOM refs ── */
+    const $date      = document.getElementById('todayDate');
+    const $count     = document.getElementById('leaveCount');
+    const $tbody     = document.getElementById('tableBody');
+    const $empty     = document.getElementById('emptyState');
+    const $overlay   = document.getElementById('overlay');
+    const $form      = document.getElementById('leaveForm');
+    const $name      = document.getElementById('inputName');
+    const $period    = document.getElementById('inputPeriod');
+    const $reason    = document.getElementById('inputReason');
+    const $otherGrp  = document.getElementById('otherReasonGroup');
+    const $otherIn   = document.getElementById('inputOtherReason');
+
+    /* ── Helpers ── */
+    function todayString() {
+      const d = new Date();
+      const y = d.getFullYear();          // 西元
+      const rocY = y - 1911;              // 民國
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+      return `民國 ${rocY} 年 ${m} 月 ${day} 日（星期${weekdays[d.getDay()]}）`;
+    }
+
+    function todayKey() {
+      const d = new Date();
+      return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    }
+
+    /* ── Data ── */
+    function loadRecords() {
+      // Auto-clear if it's a new day
+      const savedDate = localStorage.getItem(STORAGE_DATE_KEY);
+      if (savedDate !== todayKey()) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.setItem(STORAGE_DATE_KEY, todayKey());
+      }
+
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+
+      // First time: seed demo data
+      const demo = [
+        { name: '陳美玲', period: '第 1、2 節', reason: '公假' },
+        { name: '林志明', period: '第 5 節',    reason: '病假' },
+      ];
+      saveRecords(demo);
+      return demo;
+    }
+
+    function saveRecords(records) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      localStorage.setItem(STORAGE_DATE_KEY, todayKey());
+    }
+
+    /* ── Render ── */
+    function render() {
+      const records = loadRecords();
+      $count.textContent = records.length;
+
+      if (records.length === 0) {
+        $tbody.innerHTML = '';
+        $empty.style.display = '';
+        return;
+      }
+
+      $empty.style.display = 'none';
+      $tbody.innerHTML = records.map((r, i) => `
+        <tr>
+          <td class="col-num">${i + 1}</td>
+          <td>${esc(r.name)}</td>
+          <td>${esc(r.period)}</td>
+          <td>${esc(r.reason)}</td>
+          <td>
+            <button class="delete-btn" data-index="${i}" aria-label="刪除 ${esc(r.name)} 的紀錄" title="刪除">✕</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function esc(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    /* ── Modal ── */
+    function openModal() {
+      $form.reset();
+      $otherGrp.style.display = 'none';
+      $overlay.classList.add('active');
+      setTimeout(() => $name.focus(), 100);
+    }
+
+    function closeModal() {
+      $overlay.classList.remove('active');
+    }
+
+    /* ── Events ── */
+    document.getElementById('btnAdd').addEventListener('click', openModal);
+    document.getElementById('btnCancel').addEventListener('click', closeModal);
+
+    $overlay.addEventListener('click', (e) => {
+      if (e.target === $overlay) closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    $reason.addEventListener('change', () => {
+      $otherGrp.style.display = $reason.value === '其他' ? '' : 'none';
+    });
+
+    $form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = $name.value.trim();
+      const period = $period.value.trim();
+      let reason = $reason.value;
+      if (reason === '其他') {
+        reason = $otherIn.value.trim() || '其他';
+      }
+      if (!name || !period) return;
+
+      const records = loadRecords();
+      records.push({ name, period, reason });
+      saveRecords(records);
+      render();
+      closeModal();
+    });
+
+    document.getElementById('btnClear').addEventListener('click', () => {
+      if (!confirm('確定要清除全部請假紀錄嗎？')) return;
+      saveRecords([]);
+      render();
+    });
+
+    $tbody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.delete-btn');
+      if (!btn) return;
+      const idx = Number(btn.dataset.index);
+      const records = loadRecords();
+      const name = records[idx]?.name || '';
+      if (!confirm(`確定要刪除「${name}」的紀錄嗎？`)) return;
+      records.splice(idx, 1);
+      saveRecords(records);
+      render();
+    });
+
+    /* ── Init ── */
+    $date.textContent = todayString();
+    render();
+  </script>
+</body>
+</html>
